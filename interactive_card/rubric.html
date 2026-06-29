@@ -61,13 +61,7 @@
       border-radius: 99px;
       background: #e8e8e8;
       color: #555;
-      transition: background 0.2s, color 0.2s;
     }
-
-    .score-level.no-evidence  { background: #e8e8e8; color: #444; }
-    .score-level.limited      { background: #e8e8e8; color: #444; }
-    .score-level.convincing   { background: #e8e8e8; color: #444; }
-    .score-level.extensive    { background: #e8e8e8; color: #444; }
 
     .reset-btn {
       font-family: inherit;
@@ -104,60 +98,62 @@
       text-transform: uppercase;
       text-align: center;
       border-bottom: 1px solid #e0e0e0;
+      background: #fafafa;
+      color: #555;
     }
-
-    thead th:first-child { text-align: left; background: #fafafa; color: #555; }
-    thead th.col-no      { background: #fafafa; color: #555; }
-    thead th.col-limited { background: #fafafa; color: #555; }
-    thead th.col-conv    { background: #fafafa; color: #555; }
-    thead th.col-ext     { background: #fafafa; color: #555; }
+    thead th:first-child { text-align: left; }
 
     tbody tr { border-bottom: 1px solid #ebebeb; }
     tbody tr:last-child { border-bottom: none; }
 
-    td {
+    td, th {
       padding: 0.75rem 0.875rem;
       font-size: 0.8rem;
       line-height: 1.55;
       vertical-align: top;
       border-right: 1px solid #ebebeb;
     }
-    td:last-child { border-right: none; }
+    td:last-child, th:last-child { border-right: none; }
 
-    td.criterion {
+    /* Row header cells */
+    th.criterion {
       font-weight: 600;
       font-size: 0.78rem;
       color: #333;
       background: #fafafa;
       min-width: 130px;
       max-width: 150px;
+      text-align: left;
     }
 
+    /* Selectable cells */
     td.cell {
       cursor: pointer;
-      transition: opacity 0.1s;
+      transition: background 0.1s;
     }
-    td.cell:hover { opacity: 0.8; }
-    td.cell:focus { outline: 3px solid #2563eb; outline-offset: -3px; border-radius: 3px; }
+    td.cell:hover { background: #f5f5f5; }
 
-    td.cell.selected.col-no      { background: #f0f0f0; }
-    td.cell.selected.col-limited { background: #f0f0f0; }
-    td.cell.selected.col-conv    { background: #f0f0f0; }
-    td.cell.selected.col-ext     { background: #f0f0f0; }
+    /*
+      Focus ring on interactive cells — critical for keyboard users.
+      3px solid offset ring ensures visibility against any background.
+    */
+    td.cell:focus {
+      outline: 3px solid #2563eb;
+      outline-offset: -3px;
+      border-radius: 3px;
+    }
 
-    td.cell.selected { position: relative; }
+    /* Selected state — gray background + checkmark */
+    td.cell.selected { background: #f0f0f0; position: relative; }
     td.cell.selected::after {
       content: '✓';
       position: absolute;
       top: 5px; right: 7px;
       font-size: 0.65rem;
       font-weight: 700;
-      opacity: 0.6;
+      color: #555;
+      opacity: 0.7;
     }
-    td.cell.selected.col-no::after      { color: #555; }
-    td.cell.selected.col-limited::after { color: #555; }
-    td.cell.selected.col-conv::after    { color: #555; }
-    td.cell.selected.col-ext::after     { color: #555; }
 
     tfoot td {
       padding: 6px 10px;
@@ -169,37 +165,87 @@
       color: #888;
     }
     tfoot td:first-child { text-align: left; color: #555; }
-    tfoot td.pts-no      { color: #888; }
-    tfoot td.pts-limited { color: #888; }
-    tfoot td.pts-conv    { color: #888; }
-    tfoot td.pts-ext     { color: #888; }
 
-    #live-region { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); }
+    /*
+      Live region: visually hidden, but read by screen readers on change.
+      Positioned off-screen rather than display:none so it's in the DOM.
+    */
+    #live-region {
+      position: absolute;
+      width: 1px; height: 1px;
+      overflow: hidden;
+      clip: rect(0,0,0,0);
+      white-space: nowrap;
+    }
   </style>
 </head>
 <body>
 
-<h1 class="sr-only">Captioned Scenes Project Rubric. Click a cell in each row to select your score. The total updates automatically.</h1>
+<!--
+  Page-level heading orients screen reader users immediately.
+  Describes the purpose and how to interact.
+-->
+<h1 class="sr-only">
+  Captioned Scenes Project Rubric. There are 4 criteria, each scored from 1 to 4 points,
+  for a maximum of 16 points. Click or press Enter or Space on a cell to select a score
+  for that criterion. Your total score updates automatically.
+</h1>
+
+<!--
+  Single aria-live region for all dynamic announcements.
+  Using one region avoids double-announcements.
+  aria-atomic="true" means the whole message is read, not just the changed part.
+-->
 <div id="live-region" aria-live="polite" aria-atomic="true"></div>
 
-<!-- Score banner -->
-<div class="score-banner" role="region" aria-label="Current score">
+<!--
+  Score banner as a <section> with a visible heading so screen readers
+  announce it as a landmark with a meaningful name.
+  aria-live is NOT on individual score elements — announcements
+  go through the single live region instead.
+-->
+<section aria-labelledby="score-heading" class="score-banner">
   <div>
-    <div class="score-label">Total Score</div>
+    <h2 class="score-label" id="score-heading">Total Score</h2>
     <div>
+      <!--
+        id="score-display" is updated by JS.
+        Screen readers will read this when focus moves here,
+        but changes are announced via the live region instead.
+      -->
       <span class="score-value" id="score-display">0</span>
       <span class="score-max"> / 16 pts</span>
     </div>
   </div>
-  <span class="score-level" id="score-level" aria-live="polite">No selections yet</span>
-  <button class="reset-btn" onclick="resetAll()" aria-label="Reset all selections">Reset</button>
-</div>
+  <span class="score-level" id="score-level" aria-hidden="true">No selections yet</span>
+  <!--
+    Reset button: clear aria-label describes exactly what it does.
+    Keyboard accessible natively as a <button>.
+  -->
+  <button class="reset-btn" onclick="resetAll()" aria-label="Reset all rubric selections and clear the score">
+    Reset
+  </button>
+</section>
 
 <!-- Rubric table -->
 <div class="table-wrapper">
-  <table aria-label="Captioned Scenes rubric — click a cell to select a score">
+  <table>
+    <!--
+      <caption> is the most screen-reader-compatible way to label a table.
+      It's announced before the table content so users know what they're entering.
+      Visually hidden here since the page heading already covers it.
+    -->
+    <caption class="sr-only">
+      Captioned Scenes Project Rubric. Four criteria rows, four evidence level columns.
+      Use Tab to move between cells, Enter or Space to select a score.
+    </caption>
+
     <thead>
       <tr>
+        <!--
+          scope="col" on all column headers tells screen readers
+          which direction the header applies.
+        -->
         <th scope="col">Criterion</th>
         <th scope="col" class="col-no">No Evidence<br><span style="font-weight:400">1 pt</span></th>
         <th scope="col" class="col-limited">Limited Evidence<br><span style="font-weight:400">2 pts</span></th>
@@ -207,100 +253,136 @@
         <th scope="col" class="col-ext">Extensive Evidence<br><span style="font-weight:400">4 pts</span></th>
       </tr>
     </thead>
+
     <tbody>
 
       <!-- Row 1 -->
       <tr data-row="0">
-        <td class="criterion">Program Development —<br>Program Sequence</td>
-        <td class="cell col-no" tabindex="0" role="button" data-row="0" data-pts="1" data-col="no"
-            aria-label="Program Sequence: No Evidence — 1 point. Errors in program sequencing are significant enough to keep the output from resembling the intended scene.">
+        <!--
+          Criterion cells are <th scope="row"> not <td> —
+          this tells screen readers they are row headers,
+          so every cell in the row is announced in relation to both
+          its column header AND its row header automatically.
+        -->
+        <th scope="row" class="criterion">Program Development —<br>Program Sequence</th>
+
+        <!--
+          role="button" makes the cell interactive for screen readers.
+          aria-pressed="false/true" announces selected state natively —
+          screen readers say "No Evidence, 1 point, button, not selected"
+          or "selected" without needing to rely solely on the live region.
+          aria-label gives the full context: criterion + level + points.
+        -->
+        <td class="cell col-no" tabindex="0" role="button" aria-pressed="false"
+            data-row="0" data-pts="1" data-col="no"
+            aria-label="Program Sequence, No Evidence, 1 point: Sequencing errors are significant enough to keep the output from resembling the intended scene.">
           Sequencing errors are significant enough to keep the output from resembling the intended scene.
         </td>
-        <td class="cell col-limited" tabindex="0" role="button" data-row="0" data-pts="2" data-col="limited"
-            aria-label="Program Sequence: Limited Evidence — 2 points. Program has significant sequencing errors, resulting in many elements unintentionally hidden or overlapping.">
+        <td class="cell col-limited" tabindex="0" role="button" aria-pressed="false"
+            data-row="0" data-pts="2" data-col="limited"
+            aria-label="Program Sequence, Limited Evidence, 2 points: Significant sequencing errors; many elements unintentionally hidden or overlapping.">
           Significant sequencing errors; many elements unintentionally hidden or overlapping.
         </td>
-        <td class="cell col-conv" tabindex="0" role="button" data-row="0" data-pts="3" data-col="conv"
-            aria-label="Program Sequence: Convincing Evidence — 3 points. Program may contain a few incorrectly sequenced code resulting in a few elements hidden behind others unintentionally.">
+        <td class="cell col-conv" tabindex="0" role="button" aria-pressed="false"
+            data-row="0" data-pts="3" data-col="conv"
+            aria-label="Program Sequence, Convincing Evidence, 3 points: A few incorrectly sequenced lines; a few elements unintentionally hidden.">
           A few incorrectly sequenced lines; a few elements unintentionally hidden.
         </td>
-        <td class="cell col-ext" tabindex="0" role="button" data-row="0" data-pts="4" data-col="ext"
-            aria-label="Program Sequence: Extensive Evidence — 4 points. They sequenced the program well and all elements on the screen appear as intended.">
+        <td class="cell col-ext" tabindex="0" role="button" aria-pressed="false"
+            data-row="0" data-pts="4" data-col="ext"
+            aria-label="Program Sequence, Extensive Evidence, 4 points: Program is well sequenced and all elements appear as intended.">
           Program is well sequenced and all elements appear as intended.
         </td>
       </tr>
 
       <!-- Row 2 -->
       <tr data-row="1">
-        <td class="criterion">Modularity —<br>Sprites and Sprite Properties</td>
-        <td class="cell col-no" tabindex="0" role="button" data-row="1" data-pts="1" data-col="no"
-            aria-label="Sprites: No Evidence — 1 point. No sprites are used in the program.">
+        <th scope="row" class="criterion">Modularity —<br>Sprites and Sprite Properties</th>
+        <td class="cell col-no" tabindex="0" role="button" aria-pressed="false"
+            data-row="1" data-pts="1" data-col="no"
+            aria-label="Sprites and Sprite Properties, No Evidence, 1 point: No sprites are used in the program.">
           No sprites are used in the program.
         </td>
-        <td class="cell col-limited" tabindex="0" role="button" data-row="1" data-pts="2" data-col="limited"
-            aria-label="Sprites: Limited Evidence — 2 points. At least 1 sprite created. No properties updated after creation.">
+        <td class="cell col-limited" tabindex="0" role="button" aria-pressed="false"
+            data-row="1" data-pts="2" data-col="limited"
+            aria-label="Sprites and Sprite Properties, Limited Evidence, 2 points: At least 1 sprite created. No properties updated after creation.">
           At least 1 sprite created. No properties updated after creation.
         </td>
-        <td class="cell col-conv" tabindex="0" role="button" data-row="1" data-pts="3" data-col="conv"
-            aria-label="Sprites: Convincing Evidence — 3 points. At least 1 sprite created with at least one property updated after creation.">
+        <td class="cell col-conv" tabindex="0" role="button" aria-pressed="false"
+            data-row="1" data-pts="3" data-col="conv"
+            aria-label="Sprites and Sprite Properties, Convincing Evidence, 3 points: At least 1 sprite created with at least one property updated after creation.">
           At least 1 sprite created with at least one property updated after creation.
         </td>
-        <td class="cell col-ext" tabindex="0" role="button" data-row="1" data-pts="4" data-col="ext"
-            aria-label="Sprites: Extensive Evidence — 4 points. At least 2 sprites created, each with at least one property updated after creation.">
+        <td class="cell col-ext" tabindex="0" role="button" aria-pressed="false"
+            data-row="1" data-pts="4" data-col="ext"
+            aria-label="Sprites and Sprite Properties, Extensive Evidence, 4 points: At least 2 sprites created, each with at least one property updated after creation.">
           At least 2 sprites created, each with at least one property updated after creation.
         </td>
       </tr>
 
       <!-- Row 3 -->
       <tr data-row="2">
-        <td class="criterion">Position —<br>Elements and the Coordinate System</td>
-        <td class="cell col-no" tabindex="0" role="button" data-row="2" data-pts="1" data-col="no"
-            aria-label="Position: No Evidence — 1 point. Consists solely of sprites or shapes with no text, or lacks any elements positioned using the coordinate system.">
+        <th scope="row" class="criterion">Position —<br>Elements and the Coordinate System</th>
+        <td class="cell col-no" tabindex="0" role="button" aria-pressed="false"
+            data-row="2" data-pts="1" data-col="no"
+            aria-label="Position, No Evidence, 1 point: Solely sprites or shapes with no text, or no elements positioned using the coordinate system.">
           Solely sprites or shapes with no text, or no elements positioned using the coordinate system.
         </td>
-        <td class="cell col-limited" tabindex="0" role="button" data-row="2" data-pts="2" data-col="limited"
-            aria-label="Position: Limited Evidence — 2 points. A cumulative total of at least 2 elements (one of which is text) are placed on the screen using the coordinate system.">
+        <td class="cell col-limited" tabindex="0" role="button" aria-pressed="false"
+            data-row="2" data-pts="2" data-col="limited"
+            aria-label="Position, Limited Evidence, 2 points: At least 2 elements total, one must be text, placed using the coordinate system.">
           At least 2 elements total (one must be text) placed using the coordinate system.
         </td>
-        <td class="cell col-conv" tabindex="0" role="button" data-row="2" data-pts="3" data-col="conv"
-            aria-label="Position: Convincing Evidence — 3 points. At least 1 shape, 2 sprites, and 1 line of text placed using the coordinate system.">
+        <td class="cell col-conv" tabindex="0" role="button" aria-pressed="false"
+            data-row="2" data-pts="3" data-col="conv"
+            aria-label="Position, Convincing Evidence, 3 points: At least 1 shape, 2 sprites, and 1 line of text placed using the coordinate system.">
           At least 1 shape, 2 sprites, and 1 line of text placed using the coordinate system.
         </td>
-        <td class="cell col-ext" tabindex="0" role="button" data-row="2" data-pts="4" data-col="ext"
-            aria-label="Position: Extensive Evidence — 4 points. At least 2 shapes, 2 sprites, and 2 lines of text placed correctly using the coordinate system.">
+        <td class="cell col-ext" tabindex="0" role="button" aria-pressed="false"
+            data-row="2" data-pts="4" data-col="ext"
+            aria-label="Position, Extensive Evidence, 4 points: At least 2 shapes, 2 sprites, and 2 lines of text placed correctly using the coordinate system.">
           At least 2 shapes, 2 sprites, and 2 lines of text placed correctly using the coordinate system.
         </td>
       </tr>
 
       <!-- Row 4 -->
       <tr data-row="3">
-        <td class="criterion">Creating a Digital Artifact</td>
-        <td class="cell col-no" tabindex="0" role="button" data-row="3" data-pts="1" data-col="no"
-            aria-label="Digital Artifact: No Evidence — 1 point. The project guide is not filled out or is unrelated to the program.">
+        <th scope="row" class="criterion">Creating a Digital Artifact</th>
+        <td class="cell col-no" tabindex="0" role="button" aria-pressed="false"
+            data-row="3" data-pts="1" data-col="no"
+            aria-label="Creating a Digital Artifact, No Evidence, 1 point: The project guide is not filled out or is unrelated to the program.">
           The project guide is not filled out or is unrelated to the program.
         </td>
-        <td class="cell col-limited" tabindex="0" role="button" data-row="3" data-pts="2" data-col="limited"
-            aria-label="Digital Artifact: Limited Evidence — 2 points. Some elements are used as described in the project guide.">
+        <td class="cell col-limited" tabindex="0" role="button" aria-pressed="false"
+            data-row="3" data-pts="2" data-col="limited"
+            aria-label="Creating a Digital Artifact, Limited Evidence, 2 points: Some elements are used as described in the project guide.">
           Some elements are used as described in the project guide.
         </td>
-        <td class="cell col-conv" tabindex="0" role="button" data-row="3" data-pts="3" data-col="conv"
-            aria-label="Digital Artifact: Convincing Evidence — 3 points. Elements are generally used as described in the project guide.">
+        <td class="cell col-conv" tabindex="0" role="button" aria-pressed="false"
+            data-row="3" data-pts="3" data-col="conv"
+            aria-label="Creating a Digital Artifact, Convincing Evidence, 3 points: Elements are generally used as described in the project guide.">
           Elements are generally used as described in the project guide.
         </td>
-        <td class="cell col-ext" tabindex="0" role="button" data-row="3" data-pts="4" data-col="ext"
-            aria-label="Digital Artifact: Extensive Evidence — 4 points. Elements are used as described in the project guide and clearly display a captioned scene.">
+        <td class="cell col-ext" tabindex="0" role="button" aria-pressed="false"
+            data-row="3" data-pts="4" data-col="ext"
+            aria-label="Creating a Digital Artifact, Extensive Evidence, 4 points: Elements are used as described in the project guide and clearly display a captioned scene.">
           Elements are used as described in the project guide and clearly display a captioned scene.
         </td>
       </tr>
 
     </tbody>
+
+    <!--
+      tfoot with scope="col" on each cell so screen readers
+      associate point values with the correct column headers.
+    -->
     <tfoot>
       <tr>
         <td>Points per level</td>
-        <td class="pts-no">1 pt</td>
-        <td class="pts-limited">2 pts</td>
-        <td class="pts-conv">3 pts</td>
-        <td class="pts-ext">4 pts</td>
+        <td class="pts-no" scope="col">1 pt</td>
+        <td class="pts-limited" scope="col">2 pts</td>
+        <td class="pts-conv" scope="col">3 pts</td>
+        <td class="pts-ext" scope="col">4 pts</td>
       </tr>
     </tfoot>
   </table>
@@ -308,18 +390,17 @@
 
 <script>
   const scores = {};
-  const MAX = 16;
 
   function getLevel(score, count) {
     if (count === 0) return { label: 'No selections yet', cls: '' };
     const pct = score / (count * 4);
-    if (pct <= 0.25)  return { label: 'No Evidence',         cls: 'no-evidence' };
-    if (pct <= 0.5)   return { label: 'Limited Evidence',    cls: 'limited' };
-    if (pct <= 0.75)  return { label: 'Convincing Evidence', cls: 'convincing' };
-    return                   { label: 'Extensive Evidence',  cls: 'extensive' };
+    if (pct <= 0.25) return { label: 'No Evidence',         cls: 'no-evidence' };
+    if (pct <= 0.5)  return { label: 'Limited Evidence',    cls: 'limited' };
+    if (pct <= 0.75) return { label: 'Convincing Evidence', cls: 'convincing' };
+    return                  { label: 'Extensive Evidence',  cls: 'extensive' };
   }
 
-  function updateBanner() {
+  function updateBanner(announceMsg) {
     const entries = Object.values(scores).filter(v => v !== null);
     const total = entries.reduce((a, b) => a + b, 0);
     document.getElementById('score-display').textContent = total;
@@ -327,8 +408,16 @@
     const el = document.getElementById('score-level');
     el.textContent = lvl.label;
     el.className = 'score-level ' + lvl.cls;
+
+    // Announce the full updated score via the single live region
+    if (announceMsg) announce(announceMsg + ' Total score: ' + total + ' out of 16.');
   }
 
+  /*
+    Single announce function — all dynamic messages go through here.
+    Clearing first then setting after a tick forces screen readers
+    to re-read even if the message is identical to the previous one.
+  */
   function announce(msg) {
     const r = document.getElementById('live-region');
     r.textContent = '';
@@ -338,28 +427,43 @@
   function selectCell(cell) {
     const row = cell.dataset.row;
     const pts = parseInt(cell.dataset.pts);
-    const colLabels = { no: 'No Evidence', limited: 'Limited Evidence', conv: 'Convincing Evidence', ext: 'Extensive Evidence' };
+    const colLabels = {
+      no: 'No Evidence',
+      limited: 'Limited Evidence',
+      conv: 'Convincing Evidence',
+      ext: 'Extensive Evidence'
+    };
     const colLabel = colLabels[cell.dataset.col];
-    const criterion = cell.closest('tr').querySelector('.criterion').textContent.trim();
+    const criterion = cell.closest('tr').querySelector('.criterion').textContent.trim().replace(/\n/g, ' ');
 
-    document.querySelectorAll(`td.cell[data-row="${row}"]`).forEach(c => c.classList.remove('selected'));
+    // Deselect all cells in this row and reset their aria-pressed
+    document.querySelectorAll(`td.cell[data-row="${row}"]`).forEach(c => {
+      c.classList.remove('selected');
+      c.setAttribute('aria-pressed', 'false');
+    });
 
     if (scores[row] === pts) {
+      // Toggle off — deselect
       delete scores[row];
-      announce('Selection cleared.');
+      updateBanner('Selection cleared for ' + criterion + '.');
     } else {
+      // Select this cell
       scores[row] = pts;
       cell.classList.add('selected');
-      announce(criterion + ': ' + colLabel + ', ' + pts + ' point' + (pts > 1 ? 's' : '') + '.');
+      // aria-pressed="true" lets screen readers announce "selected" natively
+      cell.setAttribute('aria-pressed', 'true');
+      updateBanner(criterion + ': ' + colLabel + ', ' + pts + ' point' + (pts > 1 ? 's' : '') + ' selected.');
     }
-    updateBanner();
   }
 
   function resetAll() {
     Object.keys(scores).forEach(k => delete scores[k]);
-    document.querySelectorAll('td.cell.selected').forEach(c => c.classList.remove('selected'));
-    updateBanner();
-    announce('Rubric reset.');
+    document.querySelectorAll('td.cell').forEach(c => {
+      c.classList.remove('selected');
+      c.setAttribute('aria-pressed', 'false');
+    });
+    updateBanner('');
+    announce('All selections cleared. Total score: 0 out of 16.');
   }
 
   document.querySelectorAll('td.cell').forEach(cell => {
